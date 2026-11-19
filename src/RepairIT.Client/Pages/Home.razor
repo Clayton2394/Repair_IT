@@ -1,0 +1,74 @@
+﻿@page "/"
+@using System.Globalization
+@using RepairIT.Shared.Dtos.Ordinateurs
+@inject CatalogueApiClient Catalogue
+
+<PageTitle>Accueil · RepairIT</PageTitle>
+
+<section class="banniere">
+    <h1>Bienvenue sur RepairIT</h1>
+    <p>Gérez le catalogue d'ordinateurs et suivez votre stock depuis un seul espace.</p>
+    <div class="actions">
+        <a class="bouton bouton-primaire" href="ordinateurs"><Icone Nom="ordinateur" Taille="18" /> Voir le catalogue</a>
+    </div>
+</section>
+
+@if (stock is null)
+{
+    <div class="chargement">@(erreur ?? "Chargement des indicateurs…")</div>
+}
+else
+{
+    <div class="grille-indicateurs">
+        <CarteIndicateur Libelle="Références au catalogue" Valeur="@stock.NombreDeReferences.ToString()" Icone="ordinateur" Ton="bleu" />
+        <CarteIndicateur Libelle="Unités en stock" Valeur="@stock.NombreTotalUnites.ToString()" Icone="stock" Ton="vert" />
+        <CarteIndicateur Libelle="Valeur du stock" Valeur="@stock.ValeurTotaleStock.ToString("C0", Francais)" Icone="euro" Ton="orange" />
+    </div>
+
+    <div class="carte">
+        <div class="carte-entete">
+            <h2>Alertes de stock faible</h2>
+            <span class="pastille ton-orange">≤ @stock.SeuilStockFaible unités</span>
+        </div>
+        @if (stock.ReferencesEnStockFaible.Count == 0)
+        {
+            <div class="etat-vide">Aucune référence en stock faible.</div>
+        }
+        else
+        {
+            <ul class="liste-alertes">
+                @foreach (var ordinateur in stock.ReferencesEnStockFaible)
+                {
+                    <li>
+                        <div>
+                            <div class="cellule-principale">@ordinateur.Marque @ordinateur.Modele</div>
+                            <div class="cellule-secondaire">@ordinateur.Processeur</div>
+                        </div>
+                        <span class="pastille @(ordinateur.QuantiteEnStock == 0 ? "ton-rouge" : "ton-orange")">
+                            @ordinateur.QuantiteEnStock en stock
+                        </span>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Francais = CultureInfo.GetCultureInfo("fr-FR");
+
+    private EtatStockDto? stock;
+    private string? erreur;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            stock = await Catalogue.ConsulterStockAsync();
+        }
+        catch (HttpRequestException)
+        {
+            erreur = "Impossible de joindre le service Catalogue. Vérifiez qu'il est démarré (lancer.bat).";
+        }
+    }
+}

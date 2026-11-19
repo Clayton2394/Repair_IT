@@ -1,0 +1,16 @@
+<div class="carte indicateur">
+    <div class="indicateur-icone ton-@Ton"><Icone Nom="@Icone" /></div>
+    <div>
+        <div class="indicateur-libelle">@Libelle</div>
+        <div class="indicateur-valeur">@Valeur</div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Libelle { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Valeur { get; set; } = string.Empty;
+    [Parameter] public string Icone { get; set; } = "stock";
+
+    /// <summary>Couleur de l'icône : bleu, vert, orange ou rouge.</summary>
+    [Parameter] public string Ton { get; set; } = "bleu";
+}

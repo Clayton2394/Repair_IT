@@ -1,0 +1,26 @@
+@if (EstOuverte)
+{
+    <div class="modale-fond" @onclick="FermerAsync">
+        <div class="modale @(Petite ? "petite" : "")" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <div class="modale-entete">
+                <h2>@Titre</h2>
+                <button class="bouton bouton-icone" type="button" title="Fermer" @onclick="FermerAsync">
+                    <Icone Nom="fermer" />
+                </button>
+            </div>
+            @ChildContent
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool EstOuverte { get; set; }
+    [Parameter] public string Titre { get; set; } = string.Empty;
+    [Parameter] public bool Petite { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Événement déclenché quand l'utilisateur ferme la fenêtre (croix ou clic sur le fond).</summary>
+    [Parameter] public EventCallback Fermee { get; set; }
+
+    private Task FermerAsync() => Fermee.InvokeAsync();
+}

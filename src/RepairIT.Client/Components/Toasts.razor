@@ -1,0 +1,32 @@
+@implements IDisposable
+@inject NotificationService Notifications
+
+<div class="zone-toasts" aria-live="polite">
+    @foreach (var notification in affichees)
+    {
+        var estSucces = notification.Type == TypeNotification.Succes;
+        <div class="toast @(estSucces ? "succes" : "erreur")">
+            <Icone Nom="@(estSucces ? "succes" : "alerte")" />
+            <span>@notification.Message</span>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan DureeAffichage = TimeSpan.FromSeconds(4);
+    private readonly List<Notification> affichees = [];
+
+    protected override void OnInitialized() => Notifications.NotificationEmise += Afficher;
+
+    private async void Afficher(Notification notification)
+    {
+        affichees.Add(notification);
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(DureeAffichage);
+        affichees.Remove(notification);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Notifications.NotificationEmise -= Afficher;
+}

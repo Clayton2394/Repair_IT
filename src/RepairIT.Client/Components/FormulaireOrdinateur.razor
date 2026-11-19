@@ -1,0 +1,71 @@
+@using RepairIT.Shared.Dtos.Ordinateurs
+@using RepairIT.Shared.Enums
+
+<EditForm Model="Saisie" OnValidSubmit="Enregistree">
+    <DataAnnotationsValidator />
+    <div class="modale-corps">
+        <div class="grille-formulaire">
+            <div class="champ">
+                <label for="marque">Marque</label>
+                <InputText id="marque" @bind-Value="Saisie.Marque" placeholder="Dell, Apple, Lenovo…" />
+                <ValidationMessage For="() => Saisie.Marque" />
+            </div>
+            <div class="champ">
+                <label for="modele">Modèle</label>
+                <InputText id="modele" @bind-Value="Saisie.Modele" placeholder="XPS 13" />
+                <ValidationMessage For="() => Saisie.Modele" />
+            </div>
+            <div class="champ pleine-largeur">
+                <label for="processeur">Processeur</label>
+                <InputText id="processeur" @bind-Value="Saisie.Processeur" placeholder="Intel Core i7-1360P" />
+                <ValidationMessage For="() => Saisie.Processeur" />
+            </div>
+            <div class="champ">
+                <label for="ram">Mémoire RAM (Go)</label>
+                <InputNumber id="ram" @bind-Value="Saisie.MemoireRamGo" />
+                <ValidationMessage For="() => Saisie.MemoireRamGo" />
+            </div>
+            <div class="champ">
+                <label for="stockage">Stockage (Go)</label>
+                <InputNumber id="stockage" @bind-Value="Saisie.StockageGo" />
+                <ValidationMessage For="() => Saisie.StockageGo" />
+            </div>
+            <div class="champ">
+                <label for="prix">Prix (€)</label>
+                <InputNumber id="prix" @bind-Value="Saisie.Prix" step="0.01" />
+                <ValidationMessage For="() => Saisie.Prix" />
+            </div>
+            <div class="champ">
+                <label for="quantite">Quantité en stock</label>
+                <InputNumber id="quantite" @bind-Value="Saisie.QuantiteEnStock" />
+                <ValidationMessage For="() => Saisie.QuantiteEnStock" />
+            </div>
+            <div class="champ pleine-largeur">
+                <label for="etat">État</label>
+                <InputSelect id="etat" @bind-Value="Saisie.Etat">
+                    <option value="@EtatOrdinateur.Neuf">Neuf</option>
+                    <option value="@EtatOrdinateur.Reconditionne">Reconditionné</option>
+                    <option value="@EtatOrdinateur.Occasion">Occasion</option>
+                </InputSelect>
+            </div>
+            <div class="champ pleine-largeur">
+                <label for="description">Description (facultatif)</label>
+                <InputTextArea id="description" @bind-Value="Saisie.Description" rows="3" />
+                <ValidationMessage For="() => Saisie.Description" />
+            </div>
+        </div>
+    </div>
+    <div class="modale-pied">
+        <button class="bouton bouton-secondaire" type="button" @onclick="Annulee">Annuler</button>
+        <button class="bouton bouton-primaire" type="submit" disabled="@EnCours">
+            @(EnCours ? "Enregistrement…" : "Enregistrer")
+        </button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public OrdinateurSaisieDto Saisie { get; set; } = new();
+    [Parameter] public bool EnCours { get; set; }
+    [Parameter] public EventCallback Enregistree { get; set; }
+    [Parameter] public EventCallback Annulee { get; set; }
+}
