@@ -10,6 +10,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Clients HTTP typés : les URLs des microservices viennent de wwwroot/appsettings.json
 builder.Services.AddHttpClient<CatalogueApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:Catalogue"]!));
+builder.Services.AddHttpClient<UtilisateursApiClient>(client =>
+    client.BaseAddress = new Uri(builder.Configuration["Api:Utilisateurs"]!));
 
 builder.Services.AddSingleton<NotificationService>();
 builder.Services.AddScoped<TelechargementService>();

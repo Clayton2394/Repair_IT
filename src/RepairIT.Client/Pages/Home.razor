@@ -2,14 +2,16 @@
 @using System.Globalization
 @using RepairIT.Shared.Dtos.Ordinateurs
 @inject CatalogueApiClient Catalogue
+@inject UtilisateursApiClient Utilisateurs
 
 <PageTitle>Accueil · RepairIT</PageTitle>
 
 <section class="banniere">
     <h1>Bienvenue sur RepairIT</h1>
-    <p>Gérez le catalogue d'ordinateurs et suivez votre stock depuis un seul espace.</p>
+    <p>Gérez le catalogue d'ordinateurs, suivez votre stock et administrez les comptes de l'équipe depuis un seul espace.</p>
     <div class="actions">
         <a class="bouton bouton-primaire" href="ordinateurs"><Icone Nom="ordinateur" Taille="18" /> Voir le catalogue</a>
+        <a class="bouton bouton-clair" href="admin"><Icone Nom="utilisateurs" Taille="18" /> Gérer les utilisateurs</a>
     </div>
 </section>
 
@@ -23,6 +25,7 @@ else
         <CarteIndicateur Libelle="Références au catalogue" Valeur="@stock.NombreDeReferences.ToString()" Icone="ordinateur" Ton="bleu" />
         <CarteIndicateur Libelle="Unités en stock" Valeur="@stock.NombreTotalUnites.ToString()" Icone="stock" Ton="vert" />
         <CarteIndicateur Libelle="Valeur du stock" Valeur="@stock.ValeurTotaleStock.ToString("C0", Francais)" Icone="euro" Ton="orange" />
+        <CarteIndicateur Libelle="Utilisateurs actifs" Valeur="@utilisateursActifs.ToString()" Icone="utilisateurs" Ton="rouge" />
     </div>
 
     <div class="carte">
@@ -58,17 +61,23 @@ else
     private static readonly CultureInfo Francais = CultureInfo.GetCultureInfo("fr-FR");
 
     private EtatStockDto? stock;
+    private int utilisateursActifs;
     private string? erreur;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            stock = await Catalogue.ConsulterStockAsync();
+            var chargementStock = Catalogue.ConsulterStockAsync();
+            var chargementUtilisateurs = Utilisateurs.ListerAsync();
+            await Task.WhenAll(chargementStock, chargementUtilisateurs);
+
+            stock = chargementStock.Result;
+            utilisateursActifs = chargementUtilisateurs.Result.Count(u => u.EstActif);
         }
         catch (HttpRequestException)
         {
-            erreur = "Impossible de joindre le service Catalogue. Vérifiez qu'il est démarré (lancer.bat).";
+            erreur = "Impossible de joindre les microservices. Vérifiez qu'ils sont démarrés (lancer.bat).";
         }
     }
 }
