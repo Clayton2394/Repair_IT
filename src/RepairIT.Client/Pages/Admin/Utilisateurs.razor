@@ -1,0 +1,210 @@
+@page "/admin"
+@page "/admin/utilisateurs"
+@using RepairIT.Shared.Dtos.Utilisateurs
+@using RepairIT.Shared.Enums
+@inject UtilisateursApiClient Api
+@inject NotificationService Notifications
+@inject TelechargementService Telechargement
+
+<PageTitle>Utilisateurs · RepairIT</PageTitle>
+
+<div class="entete-page">
+    <div>
+        <h1>Gestion des utilisateurs</h1>
+        <p>Comptes de l'équipe, rôles et activation. Les mots de passe seront gérés par Keycloak.</p>
+    </div>
+    <div class="actions">
+        <button class="bouton bouton-secondaire" @onclick="ExporterAsync"><Icone Nom="exporter" Taille="18" /> Exporter CSV</button>
+        <button class="bouton bouton-primaire" @onclick="() => saisie = new()"><Icone Nom="ajouter" Taille="18" /> Nouvel utilisateur</button>
+    </div>
+</div>
+
+@if (utilisateurs is not null)
+{
+    <div class="grille-indicateurs">
+        <CarteIndicateur Libelle="Utilisateurs" Valeur="@utilisateurs.Count.ToString()" Icone="utilisateurs" Ton="bleu" />
+        <CarteIndicateur Libelle="Comptes actifs" Valeur="@utilisateurs.Count(u => u.EstActif).ToString()" Icone="succes" Ton="vert" />
+        <CarteIndicateur Libelle="Administrateurs" Valeur="@utilisateurs.Count(u => u.Role == RoleUtilisateur.Administrateur).ToString()" Icone="bouclier" Ton="orange" />
+    </div>
+}
+
+<div class="carte">
+    @if (utilisateurs is null)
+    {
+        <div class="chargement">@(erreurChargement ?? "Chargement des utilisateurs…")</div>
+    }
+    else if (utilisateurs.Count == 0)
+    {
+        <div class="etat-vide">Aucun utilisateur pour le moment.</div>
+    }
+    else
+    {
+        <div class="tableau-conteneur">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Rôle</th>
+                        <th>Statut</th>
+                        <th>Keycloak</th>
+                        <th class="alignement-droite">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var utilisateur in utilisateurs)
+                    {
+                        <tr>
+                            <td>
+                                <div class="identite">
+                                    <div class="avatar">@Initiales(utilisateur)</div>
+                                    <div>
+                                        <div class="cellule-principale">@utilisateur.Prenom @utilisateur.Nom</div>
+                                        <div class="cellule-secondaire">@utilisateur.Email</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <select class="selection-role" value="@utilisateur.Role"
+                                        @onchange="e => ChangerRoleAsync(utilisateur, e)">
+                                    <option value="@RoleUtilisateur.Gestionnaire">Gestionnaire</option>
+                                    <option value="@RoleUtilisateur.Administrateur">Administrateur</option>
+                                </select>
+                            </td>
+                            <td>
+                                <span class="pastille @(utilisateur.EstActif ? "ton-vert" : "ton-rouge")">
+                                    @(utilisateur.EstActif ? "Actif" : "Désactivé")
+                                </span>
+                            </td>
+                            <td class="cellule-secondaire">@utilisateur.UserKeycloak</td>
+                            <td class="alignement-droite">
+                                <button class="bouton bouton-secondaire" @onclick="() => BasculerActivationAsync(utilisateur)">
+                                    @(utilisateur.EstActif ? "Désactiver" : "Activer")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modale EstOuverte="saisie is not null" Titre="Nouvel utilisateur" Fermee="() => saisie = null">
+    @if (saisie is not null)
+    {
+        <EditForm Model="saisie" OnValidSubmit="CreerAsync">
+            <DataAnnotationsValidator />
+            <div class="modale-corps">
+                <div class="grille-formulaire">
+                    <div class="champ">
+                        <label for="prenom">Prénom</label>
+                        <InputText id="prenom" @bind-Value="saisie.Prenom" />
+                        <ValidationMessage For="() => saisie.Prenom" />
+                    </div>
+                    <div class="champ">
+                        <label for="nom">Nom</label>
+                        <InputText id="nom" @bind-Value="saisie.Nom" />
+                        <ValidationMessage For="() => saisie.Nom" />
+                    </div>
+                    <div class="champ pleine-largeur">
+                        <label for="email">Email</label>
+                        <InputText id="email" type="email" @bind-Value="saisie.Email" placeholder="prenom.nom@repairit.fr" />
+                        <ValidationMessage For="() => saisie.Email" />
+                    </div>
+                    <div class="champ pleine-largeur">
+                        <label for="role">Rôle</label>
+                        <InputSelect id="role" @bind-Value="saisie.Role">
+                            <option value="@RoleUtilisateur.Gestionnaire">Gestionnaire</option>
+                            <option value="@RoleUtilisateur.Administrateur">Administrateur</option>
+                        </InputSelect>
+                    </div>
+                </div>
+            </div>
+            <div class="modale-pied">
+                <button class="bouton bouton-secondaire" type="button" @onclick="() => saisie = null">Annuler</button>
+                <button class="bouton bouton-primaire" type="submit" disabled="@creationEnCours">
+                    @(creationEnCours ? "Création…" : "Créer l'utilisateur")
+                </button>
+            </div>
+        </EditForm>
+    }
+</Modale>
+
+@code {
+    private IReadOnlyList<UtilisateurDto>? utilisateurs;
+    private string? erreurChargement;
+    private UtilisateurCreationDto? saisie;
+    private bool creationEnCours;
+
+    protected override Task OnInitializedAsync() => ChargerAsync();
+
+    private async Task ChargerAsync()
+    {
+        try
+        {
+            utilisateurs = await Api.ListerAsync();
+            erreurChargement = null;
+        }
+        catch (HttpRequestException)
+        {
+            erreurChargement = "Le service Utilisateurs est injoignable.";
+        }
+    }
+
+    private Task CreerAsync()
+    {
+        creationEnCours = true;
+        return ExecuterAsync(() => Api.CreerAsync(saisie!), "Utilisateur créé.");
+    }
+
+    private Task ChangerRoleAsync(UtilisateurDto utilisateur, ChangeEventArgs evenement)
+    {
+        var role = Enum.Parse<RoleUtilisateur>(evenement.Value!.ToString()!);
+        return ExecuterAsync(() => Api.AttribuerRoleAsync(utilisateur.Id, role),
+            $"{utilisateur.Prenom} {utilisateur.Nom} est maintenant {role}.");
+    }
+
+    private Task BasculerActivationAsync(UtilisateurDto utilisateur)
+    {
+        var activer = !utilisateur.EstActif;
+        return ExecuterAsync(() => Api.ChangerActivationAsync(utilisateur.Id, activer),
+            $"Compte de {utilisateur.Prenom} {utilisateur.Nom} {(activer ? "activé" : "désactivé")}.");
+    }
+
+    /// <summary>Exécute un appel API, affiche la notification adaptée puis recharge la liste.</summary>
+    private async Task ExecuterAsync(Func<Task> appel, string messageSucces)
+    {
+        try
+        {
+            await appel();
+            Notifications.Succes(messageSucces);
+            saisie = null;
+        }
+        catch (Exception exception) when (exception is ApiException or HttpRequestException)
+        {
+            Notifications.Erreur(exception.Message);
+        }
+        finally
+        {
+            creationEnCours = false;
+        }
+
+        await ChargerAsync();
+    }
+
+    private async Task ExporterAsync()
+    {
+        try
+        {
+            var contenu = await Api.ExporterCsvAsync();
+            await Telechargement.TelechargerAsync($"utilisateurs-{DateTime.Now:yyyyMMdd}.csv", contenu);
+        }
+        catch (HttpRequestException)
+        {
+            Notifications.Erreur("L'export des utilisateurs a échoué.");
+        }
+    }
+
+    private static string Initiales(UtilisateurDto u) =>
+        $"{u.Prenom.FirstOrDefault()}{u.Nom.FirstOrDefault()}".ToUpperInvariant();
+}

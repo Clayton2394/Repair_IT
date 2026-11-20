@@ -1,0 +1,21 @@
+<Modale EstOuverte="EstOuverte" Titre="@Titre" Petite="true" Fermee="Annulee">
+    <div class="modale-corps">
+        <p>@Message</p>
+    </div>
+    <div class="modale-pied">
+        <button class="bouton bouton-secondaire" type="button" @onclick="Annulee">Annuler</button>
+        <button class="bouton bouton-danger" type="button" disabled="@EnCours" @onclick="Confirmee">
+            @LibelleConfirmation
+        </button>
+    </div>
+</Modale>
+
+@code {
+    [Parameter] public bool EstOuverte { get; set; }
+    [Parameter] public string Titre { get; set; } = "Confirmer";
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string LibelleConfirmation { get; set; } = "Confirmer";
+    [Parameter] public bool EnCours { get; set; }
+    [Parameter] public EventCallback Confirmee { get; set; }
+    [Parameter] public EventCallback Annulee { get; set; }
+}

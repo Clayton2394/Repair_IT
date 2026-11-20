@@ -1,0 +1,229 @@
+@page "/ordinateurs"
+@using System.Globalization
+@using RepairIT.Shared.Dtos.Ordinateurs
+@inject CatalogueApiClient Catalogue
+@inject NotificationService Notifications
+@inject TelechargementService Telechargement
+
+<PageTitle>Ordinateurs · RepairIT</PageTitle>
+
+<div class="entete-page">
+    <div>
+        <h1>Catalogue d'ordinateurs</h1>
+        <p>@(ordinateurs?.Count ?? 0) référence(s) · @(ordinateurs?.Sum(o => o.QuantiteEnStock) ?? 0) unité(s) en stock</p>
+    </div>
+    <div class="actions">
+        <button class="bouton bouton-secondaire" @onclick="ExporterAsync"><Icone Nom="exporter" Taille="18" /> Exporter CSV</button>
+        <button class="bouton bouton-primaire" @onclick="OuvrirCreation"><Icone Nom="ajouter" Taille="18" /> Ajouter un ordinateur</button>
+    </div>
+</div>
+
+<div class="carte">
+    <div class="carte-entete">
+        <div class="recherche">
+            <Icone Nom="recherche" Taille="18" />
+            <input type="search" placeholder="Rechercher une marque, un modèle, un processeur…"
+                   @bind="recherche" @bind:event="oninput" @bind:after="RechercherAsync" />
+        </div>
+    </div>
+
+    @if (ordinateurs is null)
+    {
+        <div class="chargement">@(erreurChargement ?? "Chargement du catalogue…")</div>
+    }
+    else if (ordinateurs.Count == 0)
+    {
+        <div class="etat-vide">Aucun ordinateur ne correspond à votre recherche.</div>
+    }
+    else
+    {
+        <div class="tableau-conteneur">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ordinateur</th>
+                        <th>Configuration</th>
+                        <th>État</th>
+                        <th class="alignement-droite">Prix</th>
+                        <th class="alignement-droite">Stock</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ordinateur in ordinateurs)
+                    {
+                        <tr>
+                            <td>
+                                <div class="cellule-principale">@ordinateur.Marque @ordinateur.Modele</div>
+                                <div class="cellule-secondaire">@ordinateur.Processeur</div>
+                            </td>
+                            <td>@ordinateur.MemoireRamGo Go RAM · @FormaterStockage(ordinateur.StockageGo)</td>
+                            <td><PastilleEtat Etat="ordinateur.Etat" /></td>
+                            <td class="alignement-droite cellule-principale">@ordinateur.Prix.ToString("C", Francais)</td>
+                            <td class="alignement-droite">
+                                <span class="pastille @TonStock(ordinateur.QuantiteEnStock)">@ordinateur.QuantiteEnStock</span>
+                            </td>
+                            <td class="alignement-droite">
+                                <button class="bouton bouton-icone" title="Modifier" @onclick="() => OuvrirModification(ordinateur)">
+                                    <Icone Nom="modifier" Taille="18" />
+                                </button>
+                                <button class="bouton bouton-icone danger" title="Supprimer" @onclick="() => aSupprimer = ordinateur">
+                                    <Icone Nom="supprimer" Taille="18" />
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<Modale EstOuverte="saisie is not null" Titre="@(idEnModification is null ? "Nouvel ordinateur" : "Modifier l'ordinateur")"
+        Fermee="FermerFormulaire">
+    @if (saisie is not null)
+    {
+        <FormulaireOrdinateur Saisie="saisie" EnCours="enregistrementEnCours"
+                              Enregistree="EnregistrerAsync" Annulee="FermerFormulaire" />
+    }
+</Modale>
+
+<ConfirmationModale EstOuverte="aSupprimer is not null" Titre="Supprimer l'ordinateur"
+                    Message="@($"Voulez-vous vraiment supprimer « {aSupprimer?.Marque} {aSupprimer?.Modele} » du catalogue ?")"
+                    LibelleConfirmation="Supprimer" EnCours="suppressionEnCours"
+                    Confirmee="SupprimerAsync" Annulee="() => aSupprimer = null" />
+
+@code {
+    private static readonly CultureInfo Francais = CultureInfo.GetCultureInfo("fr-FR");
+
+    private IReadOnlyList<OrdinateurDto>? ordinateurs;
+    private string? erreurChargement;
+    private string recherche = string.Empty;
+    private int derniereRequete;
+
+    private OrdinateurSaisieDto? saisie;
+    private int? idEnModification;
+    private bool enregistrementEnCours;
+
+    private OrdinateurDto? aSupprimer;
+    private bool suppressionEnCours;
+
+    protected override Task OnInitializedAsync() => ChargerAsync();
+
+    private async Task ChargerAsync()
+    {
+        // Ignore les réponses arrivées après une requête plus récente (frappe rapide dans la recherche).
+        var numeroRequete = ++derniereRequete;
+        try
+        {
+            var resultat = await Catalogue.ListerAsync(recherche);
+            if (numeroRequete != derniereRequete) return;
+
+            ordinateurs = resultat;
+            erreurChargement = null;
+        }
+        catch (HttpRequestException)
+        {
+            erreurChargement = "Le service Catalogue est injoignable.";
+        }
+    }
+
+    private Task RechercherAsync() => ChargerAsync();
+
+    private void OuvrirCreation()
+    {
+        idEnModification = null;
+        saisie = new OrdinateurSaisieDto();
+    }
+
+    private void OuvrirModification(OrdinateurDto ordinateur)
+    {
+        idEnModification = ordinateur.Id;
+        saisie = VersSaisie(ordinateur);
+    }
+
+    private void FermerFormulaire()
+    {
+        saisie = null;
+        idEnModification = null;
+    }
+
+    private async Task EnregistrerAsync()
+    {
+        enregistrementEnCours = true;
+        try
+        {
+            await EnvoyerSaisieAsync(saisie!);
+            Notifications.Succes(idEnModification is null ? "Ordinateur ajouté au catalogue." : "Ordinateur mis à jour.");
+            FermerFormulaire();
+            await ChargerAsync();
+        }
+        catch (Exception exception) when (exception is ApiException or HttpRequestException)
+        {
+            Notifications.Erreur(exception.Message);
+        }
+        finally
+        {
+            enregistrementEnCours = false;
+        }
+    }
+
+    private Task EnvoyerSaisieAsync(OrdinateurSaisieDto donnees) => idEnModification is int id
+        ? Catalogue.ModifierAsync(id, donnees)
+        : Catalogue.CreerAsync(donnees);
+
+    private async Task SupprimerAsync()
+    {
+        suppressionEnCours = true;
+        try
+        {
+            await Catalogue.SupprimerAsync(aSupprimer!.Id);
+            Notifications.Succes("Ordinateur supprimé.");
+            aSupprimer = null;
+            await ChargerAsync();
+        }
+        catch (Exception exception) when (exception is ApiException or HttpRequestException)
+        {
+            Notifications.Erreur(exception.Message);
+        }
+        finally
+        {
+            suppressionEnCours = false;
+        }
+    }
+
+    private async Task ExporterAsync()
+    {
+        try
+        {
+            var contenu = await Catalogue.ExporterCsvAsync();
+            await Telechargement.TelechargerAsync($"catalogue-{DateTime.Now:yyyyMMdd}.csv", contenu);
+        }
+        catch (HttpRequestException)
+        {
+            Notifications.Erreur("L'export du catalogue a échoué.");
+        }
+    }
+
+    private static OrdinateurSaisieDto VersSaisie(OrdinateurDto o) => new()
+    {
+        Marque = o.Marque,
+        Modele = o.Modele,
+        Processeur = o.Processeur,
+        MemoireRamGo = o.MemoireRamGo,
+        StockageGo = o.StockageGo,
+        Prix = o.Prix,
+        QuantiteEnStock = o.QuantiteEnStock,
+        Etat = o.Etat,
+        Description = o.Description
+    };
+
+    private static string FormaterStockage(int go) => go >= 1024 ? $"{go / 1024.0:0.#} To" : $"{go} Go";
+
+    private static string TonStock(int quantite) => quantite switch
+    {
+        0 => "ton-rouge",
+        <= 3 => "ton-orange",
+        _ => "ton-vert"
+    };
+}

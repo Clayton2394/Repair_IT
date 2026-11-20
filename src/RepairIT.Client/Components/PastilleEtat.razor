@@ -1,0 +1,21 @@
+@using RepairIT.Shared.Enums
+
+<span class="pastille ton-@Ton">@Libelle</span>
+
+@code {
+    [Parameter] public EtatOrdinateur Etat { get; set; }
+
+    private string Libelle => Etat switch
+    {
+        EtatOrdinateur.Neuf => "Neuf",
+        EtatOrdinateur.Reconditionne => "Reconditionné",
+        _ => "Occasion"
+    };
+
+    private string Ton => Etat switch
+    {
+        EtatOrdinateur.Neuf => "bleu",
+        EtatOrdinateur.Reconditionne => "vert",
+        _ => "orange"
+    };
+}

@@ -1,0 +1,34 @@
+@page "/reparations"
+@page "/ventes"
+@page "/tableau-de-bord"
+@page "/connexion"
+@inject NavigationManager Navigation
+
+<PageTitle>@module.Titre · RepairIT</PageTitle>
+
+<div class="carte bientot">
+    <div class="indicateur-icone ton-bleu"><Icone Nom="@module.Icone" Taille="30" /></div>
+    <h1>@module.Titre</h1>
+    <p>@module.Description</p>
+    <p><span class="pastille ton-orange">Prévu en @module.Version</span></p>
+</div>
+
+@code {
+    private record ModuleAVenir(string Titre, string Icone, string Version, string Description);
+
+    private static readonly Dictionary<string, ModuleAVenir> Modules = new()
+    {
+        ["reparations"] = new("Réparations", "reparation", "V2", "Enregistrement, clôture et archivage des réparations clients."),
+        ["ventes"] = new("Ventes", "vente", "V3", "Enregistrement des ventes, historique et chiffre d'affaires."),
+        ["tableau-de-bord"] = new("Tableau de bord", "tableau", "V4", "Statistiques commerciales et top des produits vendus."),
+        ["connexion"] = new("Connexion", "connexion", "V5", "Authentification déléguée à Keycloak (OAuth2 / OpenID Connect).")
+    };
+
+    private ModuleAVenir module = Modules["reparations"];
+
+    protected override void OnParametersSet()
+    {
+        var chemin = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0];
+        module = Modules.GetValueOrDefault(chemin, module);
+    }
+}
