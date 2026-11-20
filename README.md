@@ -269,8 +269,4 @@ L'heure courante est injectée via `TimeProvider`, ce qui rend les dates déterm
 | V4 | Gateway, intégration complète du front, tableau de bord | 10/01/2027 | ⏳ |
 | V5 | Keycloak (OAuth2/OIDC, JWT, rôles), Docker Compose | 24/01/2027 | ⏳ |
 
-### Workflow Git
 
-- `production` : dernière version validée par l'enseignant.
-- `main` : développement en cours.
-- Chaque rendu fait l'objet d'une **Merge Request `main` → `production`**.
